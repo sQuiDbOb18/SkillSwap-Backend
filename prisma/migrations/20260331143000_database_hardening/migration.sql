@@ -1,0 +1,4 @@
+-- Historical migration placeholder.
+-- The original SQL file was missing from the repository.
+-- Restored as a no-op so Prisma can preserve migration order and
+-- continue applying later migrations to new environments like Neon.

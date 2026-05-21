@@ -1,0 +1,21 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = __importDefault(require("express"));
+const adminController_1 = require("../controllers/adminController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
+const roleMiddleware_1 = require("../middleware/roleMiddleware");
+const validate_1 = require("../middleware/validate");
+const adminValidation_1 = require("../validations/adminValidation");
+const router = express_1.default.Router();
+router.use(authMiddleware_1.authMiddleware, (0, roleMiddleware_1.restrictTo)("Admin"));
+router.get("/dashboard", adminController_1.getAdminDashboardController);
+router.get("/users", (0, validate_1.validate)(adminValidation_1.adminUsersQuerySchema, "query"), adminController_1.getAllUsersController);
+router.delete("/users/:userId", (0, validate_1.validate)(adminValidation_1.deleteUserByAdminSchema), adminController_1.deleteUserByAdminController);
+router.get("/reports", (0, validate_1.validate)(adminValidation_1.adminReportsQuerySchema, "query"), adminController_1.getAllReportsController);
+router.patch("/reports/:reportId/status", (0, validate_1.validate)(adminValidation_1.updateReportStatusSchema), adminController_1.updateReportStatusController);
+router.get("/moderation/queue", adminController_1.getModerationQueueController);
+router.post("/moderation/:targetType/:targetId", (0, validate_1.validate)(adminValidation_1.moderationTargetParamsSchema, "params"), (0, validate_1.validate)(adminValidation_1.moderateContentSchema), adminController_1.moderateContentController);
+exports.default = router;

@@ -1,0 +1,401 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+}
+
+enum SkillCategory {
+  FRONTEND
+  BACKEND
+  FULLSTACK
+  MOBILE
+  DEVOPS
+  DATA_SCIENCE
+  AI_ML
+  UI_UX
+  CYBERSECURITY
+  CLOUD
+  QA
+  OTHER_TECH
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+  REJECTED
+}
+
+enum BookingType {
+  LEARN
+  SWAP
+}
+
+enum SessionMode {
+  EXTERNAL_LINK
+  IN_PERSON
+}
+
+enum MeetingPlatform {
+  GOOGLE_MEET
+  ZOOM
+  MICROSOFT_TEAMS
+  WHATSAPP
+  OTHER
+}
+
+enum ExtensionStatus {
+  NONE
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum PaymentStatus {
+  UNPAID
+  PARTIALLY_HELD
+  HELD
+  PARTIALLY_REFUNDED
+  REFUNDED
+  PARTIALLY_RELEASED
+  RELEASED
+}
+
+enum BookingOutcome {
+  SCHEDULED
+  COMPLETED
+  CANCELLED_BY_REQUESTER
+  CANCELLED_BY_PROVIDER
+  REQUESTER_NO_SHOW
+  PROVIDER_NO_SHOW
+  BOTH_NO_SHOW
+}
+
+enum NotificationType {
+  BOOKING_CREATED
+  BOOKING_CONFIRMED
+  BOOKING_REJECTED
+  BOOKING_COMPLETED
+  NEW_MESSAGE
+  WALLET_CREDIT
+  WALLET_DEBIT
+}
+
+enum TransactionType {
+  CREDIT
+  DEBIT
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum WalletTransactionReferenceType {
+  BOOKING_REQUESTER_HOLD
+  BOOKING_PROVIDER_HOLD
+  BOOKING_REQUESTER_REFUND
+  BOOKING_PROVIDER_REFUND
+  BOOKING_REQUESTER_PAYOUT
+  BOOKING_PROVIDER_PAYOUT
+  BOOKING_NO_SHOW_COMPENSATION
+}
+
+enum ReportTargetType {
+  USER
+  SKILL
+  REVIEW
+}
+
+enum ReportStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+  DISMISSED
+}
+
+enum ModerationStatus {
+  ACTIVE
+  FLAGGED
+  REMOVED
+}
+
+enum ModerationActionType {
+  REPORT_CREATED
+  REPORT_STATUS_UPDATED
+  CONTENT_FLAGGED
+  CONTENT_REMOVED
+  CONTENT_RESTORED
+  USER_DELETED
+}
+
+model User {
+  id           String  @id @default(uuid())
+  email        String  @unique
+  username     String? @unique
+  password     String
+  fullName     String
+  phoneNumber  String? @unique
+  age          Int?
+  bio          String?
+  profileImage String?
+  role         String  @default("User")
+  isVerified   Boolean @default(false)
+  pendingEmail String? @unique
+
+  verificationCode        String?
+  verificationCodeExpires DateTime?
+
+  resetPasswordToken   String?
+  resetPasswordExpires DateTime?
+  refreshTokenHash     String?
+  refreshTokenExpires  DateTime?
+  tokenVersion         Int       @default(0)
+  deletedAt            DateTime?
+  deletionReason       String?
+  lastSeenAt           DateTime?
+
+  createdAt DateTime @default(now())
+
+  skills           Skill[]
+  bookings         Booking[]
+  sentMessages     Message[] @relation("SentMessages")
+  receivedMessages Message[] @relation("ReceivedMessages")
+  reviewsWritten   Review[]  @relation("ReviewsWritten")
+  reviewsReceived  Review[]  @relation("ReviewsReceived")
+  notifications    Notification[]
+  wallet           Wallet?
+  reportsSubmitted Report[]  @relation("ReportsSubmitted")
+  reportsAgainst   Report[]  @relation("ReportsAgainstUser")
+  moderationLogs   ModerationLog[] @relation("AdminModerationActions")
+}
+
+model PendingRegistration {
+  id                      String   @id @default(uuid())
+  email                   String   @unique
+  fullName                String
+  password                String
+  verificationCode        String
+  verificationCodeExpires DateTime
+  createdAt               DateTime @default(now())
+}
+
+model Skill {
+  id           String        @id @default(uuid())
+  title        String
+  description  String
+  category     SkillCategory
+  level        String
+  tags         String[]      @default([])
+  availability Json?
+  price        Float?
+  creditCost   Int?
+  isBarter     Boolean       @default(false)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  moderationStatus ModerationStatus @default(ACTIVE)
+  moderationReason String?
+  moderatedAt      DateTime?
+  bookings     Booking[]     @relation("RequestedSkill")
+  swapOffers   Booking[]     @relation("OfferedSkill")
+
+  @@index([moderationStatus])
+}
+
+model Booking {
+  id                         String          @id @default(uuid())
+  userId                     String
+  skillId                    String
+  offeredSkillId             String?
+  date                       DateTime
+  type                       BookingType     @default(LEARN)
+  status                     BookingStatus   @default(PENDING)
+  sessionMode                SessionMode     @default(EXTERNAL_LINK)
+  meetingPlatform            MeetingPlatform?
+  meetingLink                String?
+  durationMinutes            Int             @default(60)
+  sessionNotes               String?
+  baseCreditCost             Int             @default(0)
+  counterpartyBaseCreditCost Int             @default(0)
+  extensionMinutes           Int             @default(0)
+  extensionCreditCost        Int             @default(0)
+  counterpartyExtensionCreditCost Int        @default(0)
+  pendingExtensionMinutes    Int?
+  pendingExtensionCreditCost Int?
+  pendingCounterpartyExtensionCreditCost Int?
+  extensionStatus            ExtensionStatus @default(NONE)
+  extensionRequestedById     String?
+  extensionRequestedAt       DateTime?
+  extensionRespondedAt       DateTime?
+  paymentStatus              PaymentStatus   @default(UNPAID)
+  outcome                    BookingOutcome  @default(SCHEDULED)
+  requesterHeldCredits       Int             @default(0)
+  providerHeldCredits        Int             @default(0)
+  cancelledAt                DateTime?
+  completedAt                DateTime?
+  createdAt                  DateTime        @default(now())
+  updatedAt                  DateTime        @updatedAt
+
+  user         User     @relation(fields: [userId], references: [id])
+  skill        Skill    @relation("RequestedSkill", fields: [skillId], references: [id])
+  offeredSkill Skill?   @relation("OfferedSkill", fields: [offeredSkillId], references: [id])
+  reviews      Review[]
+
+  @@index([userId])
+  @@index([skillId])
+  @@index([offeredSkillId])
+  @@index([type])
+  @@index([status])
+  @@index([sessionMode])
+  @@index([extensionStatus])
+  @@index([paymentStatus])
+  @@index([outcome])
+}
+
+model Review {
+  id           String   @id @default(uuid())
+  userId       String
+  targetUserId String
+  bookingId    String
+  rating       Int
+  comment      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  moderationStatus ModerationStatus @default(ACTIVE)
+  moderationReason String?
+  moderatedAt      DateTime?
+
+  user       User    @relation("ReviewsWritten", fields: [userId], references: [id])
+  targetUser User    @relation("ReviewsReceived", fields: [targetUserId], references: [id])
+  booking    Booking @relation(fields: [bookingId], references: [id])
+
+  @@unique([bookingId, userId])
+  @@index([userId])
+  @@index([targetUserId])
+  @@index([bookingId])
+  @@index([moderationStatus])
+}
+
+model Message {
+  id          String    @id @default(uuid())
+  senderId    String
+  receiverId  String
+  message     String
+  deliveredAt DateTime?
+  readAt      DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  sender   User @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedMessages", fields: [receiverId], references: [id])
+
+  @@index([senderId])
+  @@index([receiverId])
+  @@index([createdAt])
+  @@index([receiverId, deliveredAt])
+  @@index([receiverId, readAt])
+}
+
+model Notification {
+  id               String           @id @default(uuid())
+  userId           String
+  type             NotificationType
+  message          String
+  isRead           Boolean          @default(false)
+  relatedBookingId String?
+  relatedMessageId String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([userId, isRead])
+  @@index([relatedBookingId])
+  @@index([relatedMessageId])
+  @@index([createdAt])
+}
+
+model Wallet {
+  id        String              @id @default(uuid())
+  userId    String              @unique
+  balance   Int                 @default(0)
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  user         User                @relation(fields: [userId], references: [id])
+  transactions WalletTransaction[]
+}
+
+model WalletTransaction {
+  id          String            @id @default(uuid())
+  walletId    String
+  amount      Int
+  type        TransactionType
+  status      TransactionStatus @default(COMPLETED)
+  referenceType WalletTransactionReferenceType?
+  description String?
+  referenceBookingId String?
+  counterpartyUserId String?
+  balanceAfter Int
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  wallet Wallet @relation(fields: [walletId], references: [id])
+
+  @@index([walletId])
+  @@index([walletId, type])
+  @@index([walletId, status])
+  @@index([referenceBookingId])
+  @@index([createdAt])
+  @@unique([walletId, referenceBookingId, type, referenceType])
+}
+
+model Report {
+  id            String           @id @default(uuid())
+  reporterId    String
+  targetType    ReportTargetType
+  targetId      String
+  targetUserId  String?
+  reason        String
+  details       String?
+  status        ReportStatus     @default(OPEN)
+  adminNotes    String?
+  resolvedAt    DateTime?
+  resolvedById  String?
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+
+  reporter    User  @relation("ReportsSubmitted", fields: [reporterId], references: [id])
+  targetUser  User? @relation("ReportsAgainstUser", fields: [targetUserId], references: [id])
+
+  @@index([reporterId])
+  @@index([targetType, targetId])
+  @@index([status])
+  @@index([targetUserId])
+}
+
+model ModerationLog {
+  id          String               @id @default(uuid())
+  adminId     String
+  actionType  ModerationActionType
+  targetType  ReportTargetType
+  targetId    String
+  reportId    String?
+  reason      String?
+  createdAt   DateTime             @default(now())
+
+  admin User @relation("AdminModerationActions", fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([reportId])
+  @@index([createdAt])
+}
