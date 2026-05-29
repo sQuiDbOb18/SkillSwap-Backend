@@ -144,7 +144,6 @@ That means Prisma migrations run before the server starts. Make sure the product
 
 ## API documentation
 
-- Full route notes: `docs/api.md`
 - Health check: `http://localhost:4000/health`
 
 ## Environment variables

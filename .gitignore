@@ -7,3 +7,4 @@ coverage
 /src/generated/prisma
 dist/
 .agents/skills/neon-postgres/
+docs/
