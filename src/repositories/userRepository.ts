@@ -49,6 +49,12 @@ export const findPendingRegistrationByVerificationCode = (hashedCode: string) =>
     })
 }
 
+export const findPendingRegistrationByEmail = (email: string) => {
+    return prisma.pendingRegistration.findUnique({
+        where: { email }
+    })
+}
+
 export const deletePendingRegistration = (id: string) => {
     return prisma.pendingRegistration.delete({
         where: { id }

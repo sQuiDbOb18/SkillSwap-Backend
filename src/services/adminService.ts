@@ -8,6 +8,7 @@ import {
   findUserForAdminById,
   getAdminDashboardCounts,
   getModerationQueue,
+  getModerationLogsForExport,
   getReportsForAdmin,
   getUsersForAdmin,
   logModerationAction,
@@ -283,4 +284,55 @@ export const moderateContentAsAdmin = async (
 
 export const getAdminModerationQueue = async () => {
   return getModerationQueue()
+}
+
+const escapeCsvField = (value: unknown) => {
+  if (value === null || value === undefined) {
+    return ""
+  }
+
+  const text = String(value)
+  if (/[",\n]/.test(text)) {
+    return `"${text.replace(/"/g, '""')}"`
+  }
+
+  return text
+}
+
+export const exportModerationAuditCsv = async (query: {
+  from?: string
+  to?: string
+  limit?: number
+}) => {
+  const rows = await getModerationLogsForExport({
+    from: query.from ? new Date(query.from) : undefined,
+    to: query.to ? new Date(query.to) : undefined,
+    take: Math.min(Math.max(query.limit ?? 500, 1), 5000),
+  })
+
+  const header = [
+    "createdAt",
+    "adminId",
+    "adminEmail",
+    "adminName",
+    "actionType",
+    "targetType",
+    "targetId",
+    "reportId",
+    "reason",
+  ]
+
+  const lines = rows.map((row) => [
+    row.createdAt.toISOString(),
+    row.adminId,
+    row.admin.email,
+    row.admin.fullName,
+    row.actionType,
+    row.targetType,
+    row.targetId,
+    row.reportId,
+    row.reason,
+  ].map(escapeCsvField).join(","))
+
+  return [header.join(","), ...lines].join("\n")
 }

@@ -10,10 +10,12 @@ import {
     verifyResetPasswordCodeController,
     resetPasswordController,
     deleteAccountController,
-    restoreAccountController
+    restoreAccountController,
+    uploadProfileImageController
 } from "../controllers/userController"
 import { authMiddleware } from "../middleware/authMiddleware"
 import { rateLimit } from "../middleware/rateLimiter"
+import { imageUpload } from "../middleware/uploadMiddleware"
 import { validate } from "../middleware/validate"
 import {
     resetPasswordSchema,
@@ -44,6 +46,7 @@ const accountRecoveryLimiter = rateLimit({
 router.get("/verify-email", verifyEmailChangeRedirect)
 router.get("/profile", authMiddleware, getProfile)
 router.put("/profile", authMiddleware, validate(updateProfileSchema), updateProfile)
+router.post("/profile-image", authMiddleware, imageUpload.single("image"), uploadProfileImageController)
 router.put("/password", authMiddleware, validate(changePasswordSchema), changePasswordController)
 router.put("/email", authMiddleware, validate(changeEmailSchema), changeEmailController)
 router.post("/verify-email", passwordRecoveryLimiter, validate(verifyEmailTokenSchema), verifyEmailChange)

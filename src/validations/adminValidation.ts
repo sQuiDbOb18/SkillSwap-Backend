@@ -1,5 +1,10 @@
 import { z } from "zod"
 
+const booleanQuerySchema = z.union([
+  z.boolean(),
+  z.enum(["true", "false"]).transform((value) => value === "true"),
+])
+
 export const createReportSchema = z.object({
   targetType: z.enum(["USER", "SKILL", "REVIEW"]),
   targetId: z.string().uuid("Target ID must be a valid UUID"),
@@ -25,7 +30,7 @@ export const moderateContentSchema = z.object({
 export const adminUsersQuerySchema = z.object({
   search: z.string().trim().min(1).optional(),
   role: z.string().trim().min(1).optional(),
-  includeDeleted: z.coerce.boolean().optional(),
+  includeDeleted: booleanQuerySchema.optional(),
   page: z.coerce.number().int().min(1).optional(),
   limit: z.coerce.number().int().min(1).max(100).optional(),
 })

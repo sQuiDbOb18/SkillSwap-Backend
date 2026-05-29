@@ -1,11 +1,21 @@
+import { Prisma } from "@prisma/client";
 import { CustomError } from "../utils/CustomError";
 import {
     createSkill,
+    createSkillFavorite,
+    deleteSavedSkillSearchById,
     deleteSkillById,
+    deleteSkillFavorite,
+    findPublicSkillById,
     findSkillByIdAndUser,
+    getFavoriteSkillsByUser,
+    getSavedSkillSearchesByUser,
     getSkillsByUser,
+    getSkillSearchHistoryByUser,
+    addSkillSearchHistory,
     searchSkills,
-    updateSkillById
+    updateSkillById,
+    upsertSavedSkillSearch
 } from "../repositories/skillsRepository";
 import {
     AvailabilityDay,
@@ -46,6 +56,12 @@ const skillCategoryMatchers: Record<string, readonly string[]> = {
 
 const getRandomItem = <T>(items: readonly T[]) => {
     return items[Math.floor(Math.random() * items.length)]
+}
+
+const toSearchQueryJson = (query: Record<string, unknown>) => {
+    return Object.fromEntries(
+        Object.entries(query).filter(([, value]) => value !== undefined)
+    ) as Prisma.JsonObject
 }
 
 const detectCategory = (skillNames: string[]) => {
@@ -90,7 +106,7 @@ export const discoverSkills = async (filters: {
     sortBy?: "newest" | "rating" | "creditCostAsc" | "creditCostDesc"
     page?: number
     limit?: number
-}) => {
+}, userId?: string) => {
     const safeLimit = Math.min(Math.max(filters.limit ?? 10, 1), 50)
     const safePage = Math.max(filters.page ?? 1, 1)
     const searchFilters: SkillSearchFilters = {
@@ -108,6 +124,10 @@ export const discoverSkills = async (filters: {
         offset: (safePage - 1) * safeLimit,
     }
 
+    if (userId && Object.keys(toSearchQueryJson(filters)).length > 0) {
+        await addSkillSearchHistory(userId, toSearchQueryJson(filters))
+    }
+
     const result = await searchSkills(searchFilters)
 
     return {
@@ -115,6 +135,61 @@ export const discoverSkills = async (filters: {
         page: safePage,
         totalPages: result.total === 0 ? 0 : Math.ceil(result.total / safeLimit),
     }
+}
+
+export const favoriteSkill = async (userId: string, skillId: string) => {
+    const skill = await findPublicSkillById(skillId)
+
+    if (!skill) {
+        throw new CustomError("Skill not found", 404)
+    }
+
+    if (skill.userId === userId) {
+        throw new CustomError("You cannot favorite your own skill", 400)
+    }
+
+    return createSkillFavorite(userId, skillId)
+}
+
+export const unfavoriteSkill = async (userId: string, skillId: string) => {
+    await deleteSkillFavorite(userId, skillId)
+    return { message: "Skill removed from favorites" }
+}
+
+export const getFavoriteSkills = async (userId: string) => {
+    const favorites = await getFavoriteSkillsByUser(userId)
+    return favorites.map((favorite) => ({
+        id: favorite.id,
+        createdAt: favorite.createdAt,
+        skill: favorite.skill,
+    }))
+}
+
+export const getSkillSearchHistory = async (userId: string) => {
+    return getSkillSearchHistoryByUser(userId)
+}
+
+export const saveSkillSearch = async (
+    userId: string,
+    data: {
+        name: string
+        query: Record<string, unknown>
+    }
+) => {
+    return upsertSavedSkillSearch({
+        userId,
+        name: data.name,
+        query: toSearchQueryJson(data.query),
+    })
+}
+
+export const getSavedSkillSearches = async (userId: string) => {
+    return getSavedSkillSearchesByUser(userId)
+}
+
+export const deleteSavedSkillSearch = async (userId: string, savedSearchId: string) => {
+    await deleteSavedSkillSearchById(userId, savedSearchId)
+    return { message: "Saved search deleted successfully" }
 }
 
 export const getUserSkillById = async (userId: string, skillId: string) => {

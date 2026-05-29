@@ -1,4 +1,5 @@
 import jwt from "jsonwebtoken"
+import { env } from "../config/env"
 
 export type AccessTokenPayload = {
   userId: string
@@ -17,9 +18,9 @@ export type RefreshTokenPayload = {
 }
 
 export const verifyAccessToken = (token: string) => {
-  return jwt.verify(token, process.env.JWT_ACCESS_SECRET as string) as AccessTokenPayload
+  return jwt.verify(token, env.JWT_ACCESS_SECRET) as AccessTokenPayload
 }
 
 export const verifyRefreshToken = (token: string) => {
-  return jwt.verify(token, process.env.JWT_REFRESH_SECRET as string) as RefreshTokenPayload
+  return jwt.verify(token, env.JWT_REFRESH_SECRET) as RefreshTokenPayload
 }

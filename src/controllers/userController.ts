@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler";
 import { emailConfig } from "../config/email";
 import { setRefreshTokenCookie } from "../utils/refreshTokenCookie";
+import { uploadUserProfileImage } from "../services/uploadService";
 import { 
     getUserProfile, 
     updateUserProfile, 
@@ -98,4 +99,9 @@ export const restoreAccountController = asyncHandler(async (req: any, res: any) 
   const result = await restoreAccount(req.body);
   setRefreshTokenCookie(res, result.refreshToken);
   res.json(result);
+});
+
+export const uploadProfileImageController = asyncHandler(async (req: any, res: any) => {
+  const result = await uploadUserProfileImage(req.user.userId, req.file);
+  res.status(201).json(result);
 });

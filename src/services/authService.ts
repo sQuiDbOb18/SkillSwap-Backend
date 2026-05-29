@@ -2,6 +2,7 @@ import {
     createUser,
     deletePendingRegistration,
     findAnyUserByEmail,
+    findPendingRegistrationByEmail,
     findUserByRefreshTokenHash,
     findUserByEmail,
     findPendingRegistrationByVerificationCode,
@@ -112,6 +113,44 @@ export const verifyEmail = async (code: string) => {
     })
 
     return { message: "Email verified successfully" }
+}
+
+export const resendVerificationCode = async (email: string) => {
+    const existingUser = await findAnyUserByEmail(email)
+
+    if (existingUser) {
+        if (existingUser.deletedAt) {
+            throw new CustomError("Account is deleted. Restore it instead of verifying again.", 400)
+        }
+        throw new CustomError("This account is already registered", 400)
+    }
+
+    const pendingRegistration = await findPendingRegistrationByEmail(email)
+    if (!pendingRegistration) {
+        throw new CustomError("No pending registration found for this email", 404)
+    }
+
+    const { rawCode, hashedCode } = generateVerificationCode()
+    const expires = new Date(Date.now() + 15 * 60 * 1000)
+
+    await upsertPendingRegistration({
+        email: pendingRegistration.email,
+        password: pendingRegistration.password,
+        fullName: pendingRegistration.fullName,
+        verificationCode: hashedCode,
+        verificationCodeExpires: expires
+    })
+
+    await sendVerificationEmail({
+        email: pendingRegistration.email,
+        name: pendingRegistration.fullName,
+        code: rawCode
+    })
+
+    return {
+        message: "Verification code resent to your email address.",
+        email: pendingRegistration.email
+    }
 }
 
 export const loginUser = async ({ email, password }: LoginUserInput) => {

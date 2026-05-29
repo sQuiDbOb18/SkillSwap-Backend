@@ -3,7 +3,7 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
+  provider = "postgresql"
 }
 
 enum SkillCategory {
@@ -162,17 +162,20 @@ model User {
 
   createdAt DateTime @default(now())
 
-  skills           Skill[]
-  bookings         Booking[]
-  sentMessages     Message[] @relation("SentMessages")
-  receivedMessages Message[] @relation("ReceivedMessages")
-  reviewsWritten   Review[]  @relation("ReviewsWritten")
-  reviewsReceived  Review[]  @relation("ReviewsReceived")
-  notifications    Notification[]
-  wallet           Wallet?
-  reportsSubmitted Report[]  @relation("ReportsSubmitted")
-  reportsAgainst   Report[]  @relation("ReportsAgainstUser")
-  moderationLogs   ModerationLog[] @relation("AdminModerationActions")
+  skills             Skill[]
+  bookings           Booking[]
+  sentMessages       Message[]            @relation("SentMessages")
+  receivedMessages   Message[]            @relation("ReceivedMessages")
+  reviewsWritten     Review[]             @relation("ReviewsWritten")
+  reviewsReceived    Review[]             @relation("ReviewsReceived")
+  notifications      Notification[]
+  wallet             Wallet?
+  reportsSubmitted   Report[]             @relation("ReportsSubmitted")
+  reportsAgainst     Report[]             @relation("ReportsAgainstUser")
+  moderationLogs     ModerationLog[]      @relation("AdminModerationActions")
+  favoriteSkills     SkillFavorite[]
+  skillSearchHistory SkillSearchHistory[]
+  savedSkillSearches SavedSkillSearch[]
 }
 
 model PendingRegistration {
@@ -186,62 +189,102 @@ model PendingRegistration {
 }
 
 model Skill {
-  id           String        @id @default(uuid())
-  title        String
-  description  String
-  category     SkillCategory
-  level        String
-  tags         String[]      @default([])
-  availability Json?
-  price        Float?
-  creditCost   Int?
-  isBarter     Boolean       @default(false)
-  userId       String
-  user         User          @relation(fields: [userId], references: [id])
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
+  id               String           @id @default(uuid())
+  title            String
+  description      String
+  category         SkillCategory
+  level            String
+  tags             String[]         @default([])
+  availability     Json?
+  price            Float?
+  creditCost       Int?
+  isBarter         Boolean          @default(false)
+  userId           String
+  user             User             @relation(fields: [userId], references: [id])
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   moderationStatus ModerationStatus @default(ACTIVE)
   moderationReason String?
   moderatedAt      DateTime?
-  bookings     Booking[]     @relation("RequestedSkill")
-  swapOffers   Booking[]     @relation("OfferedSkill")
+  bookings         Booking[]        @relation("RequestedSkill")
+  swapOffers       Booking[]        @relation("OfferedSkill")
+  favorites        SkillFavorite[]
 
   @@index([moderationStatus])
 }
 
+model SkillFavorite {
+  id        String   @id @default(uuid())
+  userId    String
+  skillId   String
+  createdAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, skillId])
+  @@index([userId])
+  @@index([skillId])
+}
+
+model SkillSearchHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  query     Json
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+model SavedSkillSearch {
+  id        String   @id @default(uuid())
+  userId    String
+  name      String
+  query     Json
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, name])
+  @@index([userId])
+}
+
 model Booking {
-  id                         String          @id @default(uuid())
-  userId                     String
-  skillId                    String
-  offeredSkillId             String?
-  date                       DateTime
-  type                       BookingType     @default(LEARN)
-  status                     BookingStatus   @default(PENDING)
-  sessionMode                SessionMode     @default(EXTERNAL_LINK)
-  meetingPlatform            MeetingPlatform?
-  meetingLink                String?
-  durationMinutes            Int             @default(60)
-  sessionNotes               String?
-  baseCreditCost             Int             @default(0)
-  counterpartyBaseCreditCost Int             @default(0)
-  extensionMinutes           Int             @default(0)
-  extensionCreditCost        Int             @default(0)
-  counterpartyExtensionCreditCost Int        @default(0)
-  pendingExtensionMinutes    Int?
-  pendingExtensionCreditCost Int?
+  id                                     String           @id @default(uuid())
+  userId                                 String
+  skillId                                String
+  offeredSkillId                         String?
+  date                                   DateTime
+  type                                   BookingType      @default(LEARN)
+  status                                 BookingStatus    @default(PENDING)
+  sessionMode                            SessionMode      @default(EXTERNAL_LINK)
+  meetingPlatform                        MeetingPlatform?
+  meetingLink                            String?
+  durationMinutes                        Int              @default(60)
+  sessionNotes                           String?
+  baseCreditCost                         Int              @default(0)
+  counterpartyBaseCreditCost             Int              @default(0)
+  extensionMinutes                       Int              @default(0)
+  extensionCreditCost                    Int              @default(0)
+  counterpartyExtensionCreditCost        Int              @default(0)
+  pendingExtensionMinutes                Int?
+  pendingExtensionCreditCost             Int?
   pendingCounterpartyExtensionCreditCost Int?
-  extensionStatus            ExtensionStatus @default(NONE)
-  extensionRequestedById     String?
-  extensionRequestedAt       DateTime?
-  extensionRespondedAt       DateTime?
-  paymentStatus              PaymentStatus   @default(UNPAID)
-  outcome                    BookingOutcome  @default(SCHEDULED)
-  requesterHeldCredits       Int             @default(0)
-  providerHeldCredits        Int             @default(0)
-  cancelledAt                DateTime?
-  completedAt                DateTime?
-  createdAt                  DateTime        @default(now())
-  updatedAt                  DateTime        @updatedAt
+  extensionStatus                        ExtensionStatus  @default(NONE)
+  extensionRequestedById                 String?
+  extensionRequestedAt                   DateTime?
+  extensionRespondedAt                   DateTime?
+  paymentStatus                          PaymentStatus    @default(UNPAID)
+  outcome                                BookingOutcome   @default(SCHEDULED)
+  requesterHeldCredits                   Int              @default(0)
+  providerHeldCredits                    Int              @default(0)
+  cancelledAt                            DateTime?
+  completedAt                            DateTime?
+  createdAt                              DateTime         @default(now())
+  updatedAt                              DateTime         @updatedAt
 
   user         User     @relation(fields: [userId], references: [id])
   skill        Skill    @relation("RequestedSkill", fields: [skillId], references: [id])
@@ -260,14 +303,14 @@ model Booking {
 }
 
 model Review {
-  id           String   @id @default(uuid())
-  userId       String
-  targetUserId String
-  bookingId    String
-  rating       Int
-  comment      String?
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id               String           @id @default(uuid())
+  userId           String
+  targetUserId     String
+  bookingId        String
+  rating           Int
+  comment          String?
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
   moderationStatus ModerationStatus @default(ACTIVE)
   moderationReason String?
   moderatedAt      DateTime?
@@ -324,57 +367,57 @@ model Notification {
 }
 
 model Wallet {
-  id        String              @id @default(uuid())
-  userId    String              @unique
-  balance   Int                 @default(0)
-  createdAt DateTime            @default(now())
-  updatedAt DateTime            @updatedAt
+  id        String   @id @default(uuid())
+  userId    String   @unique
+  balance   Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user         User                @relation(fields: [userId], references: [id])
   transactions WalletTransaction[]
 }
 
 model WalletTransaction {
-  id          String            @id @default(uuid())
-  walletId    String
-  amount      Int
-  type        TransactionType
-  status      TransactionStatus @default(COMPLETED)
-  referenceType WalletTransactionReferenceType?
-  description String?
+  id                 String                          @id @default(uuid())
+  walletId           String
+  amount             Int
+  type               TransactionType
+  status             TransactionStatus               @default(COMPLETED)
+  referenceType      WalletTransactionReferenceType?
+  description        String?
   referenceBookingId String?
   counterpartyUserId String?
-  balanceAfter Int
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  balanceAfter       Int
+  createdAt          DateTime                        @default(now())
+  updatedAt          DateTime                        @updatedAt
 
   wallet Wallet @relation(fields: [walletId], references: [id])
 
+  @@unique([walletId, referenceBookingId, type, referenceType])
   @@index([walletId])
   @@index([walletId, type])
   @@index([walletId, status])
   @@index([referenceBookingId])
   @@index([createdAt])
-  @@unique([walletId, referenceBookingId, type, referenceType])
 }
 
 model Report {
-  id            String           @id @default(uuid())
-  reporterId    String
-  targetType    ReportTargetType
-  targetId      String
-  targetUserId  String?
-  reason        String
-  details       String?
-  status        ReportStatus     @default(OPEN)
-  adminNotes    String?
-  resolvedAt    DateTime?
-  resolvedById  String?
-  createdAt     DateTime         @default(now())
-  updatedAt     DateTime         @updatedAt
+  id           String           @id @default(uuid())
+  reporterId   String
+  targetType   ReportTargetType
+  targetId     String
+  targetUserId String?
+  reason       String
+  details      String?
+  status       ReportStatus     @default(OPEN)
+  adminNotes   String?
+  resolvedAt   DateTime?
+  resolvedById String?
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
 
-  reporter    User  @relation("ReportsSubmitted", fields: [reporterId], references: [id])
-  targetUser  User? @relation("ReportsAgainstUser", fields: [targetUserId], references: [id])
+  reporter   User  @relation("ReportsSubmitted", fields: [reporterId], references: [id])
+  targetUser User? @relation("ReportsAgainstUser", fields: [targetUserId], references: [id])
 
   @@index([reporterId])
   @@index([targetType, targetId])
@@ -383,14 +426,14 @@ model Report {
 }
 
 model ModerationLog {
-  id          String               @id @default(uuid())
-  adminId     String
-  actionType  ModerationActionType
-  targetType  ReportTargetType
-  targetId    String
-  reportId    String?
-  reason      String?
-  createdAt   DateTime             @default(now())
+  id         String               @id @default(uuid())
+  adminId    String
+  actionType ModerationActionType
+  targetType ReportTargetType
+  targetId   String
+  reportId   String?
+  reason     String?
+  createdAt  DateTime             @default(now())
 
   admin User @relation("AdminModerationActions", fields: [adminId], references: [id])
 
@@ -398,4 +441,13 @@ model ModerationLog {
   @@index([targetType, targetId])
   @@index([reportId])
   @@index([createdAt])
+}
+
+model RateLimitEntry {
+  key       String   @id
+  count     Int
+  resetAt   DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([resetAt])
 }

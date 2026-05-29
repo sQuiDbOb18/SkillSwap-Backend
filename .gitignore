@@ -1,5 +1,9 @@
 node_modules
+dist
+coverage
 # Keep environment variables out of version control
 .env
 
 /src/generated/prisma
+dist/
+.agents/skills/neon-postgres/

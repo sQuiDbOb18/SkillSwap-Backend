@@ -33,6 +33,20 @@ export const findSkillByIdAndUser = (id: string, userId: string) => {
   });
 };
 
+export const findPublicSkillById = (id: string) => {
+  return prisma.skill.findFirst({
+    where: {
+      id,
+      moderationStatus: {
+        not: "REMOVED",
+      },
+      user: {
+        deletedAt: null,
+      },
+    },
+  })
+}
+
 export const updateSkillById = (id: string, data: SkillUpdatePayload) => {
   const updateData = {
     ...data,
@@ -245,3 +259,116 @@ export const searchSkills = async (filters: SkillSearchFilters) => {
     offset,
   };
 };
+
+export const createSkillFavorite = (userId: string, skillId: string) => {
+  return prisma.skillFavorite.upsert({
+    where: {
+      userId_skillId: {
+        userId,
+        skillId,
+      },
+    },
+    update: {},
+    create: {
+      userId,
+      skillId,
+    },
+    include: {
+      skill: true,
+    },
+  })
+}
+
+export const deleteSkillFavorite = (userId: string, skillId: string) => {
+  return prisma.skillFavorite.deleteMany({
+    where: {
+      userId,
+      skillId,
+    },
+  })
+}
+
+export const getFavoriteSkillsByUser = (userId: string) => {
+  return prisma.skillFavorite.findMany({
+    where: {
+      userId,
+      skill: {
+        moderationStatus: {
+          not: "REMOVED",
+        },
+        user: {
+          deletedAt: null,
+        },
+      },
+    },
+    include: {
+      skill: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              fullName: true,
+              profileImage: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  })
+}
+
+export const addSkillSearchHistory = (userId: string, query: Prisma.JsonObject) => {
+  return prisma.skillSearchHistory.create({
+    data: {
+      userId,
+      query,
+    },
+  })
+}
+
+export const getSkillSearchHistoryByUser = (userId: string) => {
+  return prisma.skillSearchHistory.findMany({
+    where: { userId },
+    orderBy: { createdAt: "desc" },
+    take: 20,
+  })
+}
+
+export const upsertSavedSkillSearch = (data: {
+  userId: string
+  name: string
+  query: Prisma.JsonObject
+}) => {
+  return prisma.savedSkillSearch.upsert({
+    where: {
+      userId_name: {
+        userId: data.userId,
+        name: data.name,
+      },
+    },
+    update: {
+      query: data.query,
+    },
+    create: data,
+  })
+}
+
+export const getSavedSkillSearchesByUser = (userId: string) => {
+  return prisma.savedSkillSearch.findMany({
+    where: { userId },
+    orderBy: { updatedAt: "desc" },
+  })
+}
+
+export const deleteSavedSkillSearchById = (userId: string, savedSearchId: string) => {
+  return prisma.savedSkillSearch.deleteMany({
+    where: {
+      id: savedSearchId,
+      userId,
+    },
+  })
+}

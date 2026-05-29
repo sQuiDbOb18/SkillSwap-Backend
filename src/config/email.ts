@@ -1,6 +1,8 @@
-const clientUrl = process.env.CLIENT_URL ?? "http://localhost:3000";
-const apiUrl = process.env.API_URL ?? "http://localhost:4000";
-const appName = process.env.APP_NAME ?? "SkillSwap";
+import { env } from "./env";
+
+const clientUrl = env.CLIENT_URL;
+const apiUrl = env.API_URL;
+const appName = env.APP_NAME;
 
 const optionalEnv = (value?: string) => {
   const trimmed = value?.trim();
@@ -24,24 +26,24 @@ export const emailConfig = {
   clientUrl,
   apiUrl,
   supportEmail:
-    process.env.SUPPORT_EMAIL ??
-    optionalEnv(process.env.RESEND_REPLY_TO) ??
-    optionalEnv(process.env.RESEND_FROM_EMAIL) ??
-    process.env.MAIL_FROM_EMAIL ??
+    env.SUPPORT_EMAIL ??
+    optionalEnv(env.RESEND_REPLY_TO) ??
+    optionalEnv(env.RESEND_FROM_EMAIL) ??
+    env.MAIL_FROM_EMAIL ??
     "support@skillswap.com",
   resend: {
-    apiKey: optionalEnv(process.env.RESEND_API_KEY),
+    apiKey: optionalEnv(env.RESEND_API_KEY),
     fromEmail:
-      optionalEnv(process.env.RESEND_FROM_EMAIL) ??
-      optionalEnv(process.env.MAIL_FROM_EMAIL),
+      optionalEnv(env.RESEND_FROM_EMAIL) ??
+      optionalEnv(env.MAIL_FROM_EMAIL),
     fromName:
-      optionalEnv(process.env.RESEND_FROM_NAME) ??
-      optionalEnv(process.env.MAIL_FROM_NAME) ??
+      optionalEnv(env.RESEND_FROM_NAME) ??
+      optionalEnv(env.MAIL_FROM_NAME) ??
       appName,
     replyTo:
-      optionalEnv(process.env.RESEND_REPLY_TO) ??
-      optionalEnv(process.env.RESEND_FROM_EMAIL) ??
-      optionalEnv(process.env.MAIL_FROM_EMAIL),
+      optionalEnv(env.RESEND_REPLY_TO) ??
+      optionalEnv(env.RESEND_FROM_EMAIL) ??
+      optionalEnv(env.MAIL_FROM_EMAIL),
     templates: {
       verification: optionalEnv(process.env.RESEND_TEMPLATE_VERIFICATION_ID),
       emailChangeVerification: optionalEnv(process.env.RESEND_TEMPLATE_EMAIL_CHANGE_ID),
@@ -55,43 +57,43 @@ export const emailConfig = {
   },
   verifyAccountActionUrl: (token: string) =>
     withToken(
-      process.env.VERIFY_ACCOUNT_URL ?? `${apiUrl}/api/auth/verify-email`,
+      env.VERIFY_ACCOUNT_URL ?? `${apiUrl}/api/auth/verify-email`,
       token
     ),
   verifyEmailChangeActionUrl: (token: string) =>
     withToken(
-      process.env.VERIFY_EMAIL_CHANGE_URL ?? `${apiUrl}/api/user/verify-email`,
+      env.VERIFY_EMAIL_CHANGE_URL ?? `${apiUrl}/api/user/verify-email`,
       token
     ),
   resetPasswordPageUrl: (token: string) =>
     withToken(
-      process.env.RESET_PASSWORD_URL ?? `${clientUrl}/reset-password`,
+      env.RESET_PASSWORD_URL ?? `${clientUrl}/reset-password`,
       token
     ),
-  bookingsPageUrl: process.env.BOOKINGS_PAGE_URL ?? `${clientUrl}/bookings`,
-  signInPageUrl: process.env.SIGN_IN_URL ?? `${clientUrl}/login`,
-  appHomeUrl: process.env.APP_HOME_URL ?? clientUrl,
+  bookingsPageUrl: env.BOOKINGS_PAGE_URL ?? `${clientUrl}/bookings`,
+  signInPageUrl: env.SIGN_IN_URL ?? `${clientUrl}/login`,
+  appHomeUrl: env.APP_HOME_URL ?? clientUrl,
   verifyAccountSuccessRedirect: (message: string) =>
     withStatus(
-      process.env.VERIFY_ACCOUNT_SUCCESS_URL ?? `${clientUrl}/auth/verified`,
+      env.VERIFY_ACCOUNT_SUCCESS_URL ?? `${clientUrl}/auth/verified`,
       "success",
       message
     ),
   verifyAccountFailureRedirect: (message: string) =>
     withStatus(
-      process.env.VERIFY_ACCOUNT_FAILURE_URL ?? `${clientUrl}/auth/verified`,
+      env.VERIFY_ACCOUNT_FAILURE_URL ?? `${clientUrl}/auth/verified`,
       "error",
       message
     ),
   verifyEmailChangeSuccessRedirect: (message: string) =>
     withStatus(
-      process.env.VERIFY_EMAIL_CHANGE_SUCCESS_URL ?? `${clientUrl}/settings/email-verified`,
+      env.VERIFY_EMAIL_CHANGE_SUCCESS_URL ?? `${clientUrl}/settings/email-verified`,
       "success",
       message
     ),
   verifyEmailChangeFailureRedirect: (message: string) =>
     withStatus(
-      process.env.VERIFY_EMAIL_CHANGE_FAILURE_URL ?? `${clientUrl}/settings/email-verified`,
+      env.VERIFY_EMAIL_CHANGE_FAILURE_URL ?? `${clientUrl}/settings/email-verified`,
       "error",
       message
     ),

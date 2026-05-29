@@ -100,6 +100,10 @@ export const changePasswordSchema = z
           .min(2, "Bio must be at least 2 characters")
           .max(250, "Bio must not exceed 250 characters")
           .optional(),
+
+        profileImage: z
+          .url("Profile image must be a valid URL")
+          .optional(),
   }).strict()
 
   export const changeEmailSchema = z.object({

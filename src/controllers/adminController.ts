@@ -1,6 +1,7 @@
 import { asyncHandler } from "../utils/asyncHandler"
 import {
   deleteUserAsAdmin,
+  exportModerationAuditCsv,
   getAdminDashboard,
   getAdminModerationQueue,
   getAllReportsForAdmin,
@@ -55,4 +56,11 @@ export const moderateContentController = asyncHandler(async (req: any, res: any)
 export const getModerationQueueController = asyncHandler(async (req: any, res: any) => {
   const result = await getAdminModerationQueue()
   res.json(result)
+})
+
+export const exportModerationAuditController = asyncHandler(async (req: any, res: any) => {
+  const csv = await exportModerationAuditCsv(req.query)
+  res.setHeader("Content-Type", "text/csv; charset=utf-8")
+  res.setHeader("Content-Disposition", "attachment; filename=\"moderation-audit.csv\"")
+  res.send(csv)
 })

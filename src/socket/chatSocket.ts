@@ -1,5 +1,6 @@
 import { Server as HttpServer } from "http"
 import { Server } from "socket.io"
+import { allowedOrigins } from "../config/env"
 import { findUserForAuthById, updateUserLastSeen } from "../repositories/userRepository"
 import {
   formatMessageForUser,
@@ -11,6 +12,7 @@ import { verifyAccessToken } from "../utils/authToken"
 
 let io: Server | null = null
 const onlineUsers = new Map<string, number>()
+const socketTypingTargets = new Map<string, Set<string>>()
 
 const getUserRoom = (userId: string) => `user:${userId}`
 
@@ -45,10 +47,28 @@ const extractSocketToken = (socket: any) => {
   return null
 }
 
+export const getTypingPayload = (senderId: string, receiverId: string, isTyping: boolean) => ({
+  userId: senderId,
+  senderId,
+  receiverId,
+  isTyping,
+})
+
+const emitTypingState = (senderId: string, receiverId: string, isTyping: boolean) => {
+  if (!io || !receiverId || senderId === receiverId) {
+    return
+  }
+
+  const payload = getTypingPayload(senderId, receiverId, isTyping)
+
+  io.to(getUserRoom(receiverId)).emit("chat:typing", payload)
+  io.to(getUserRoom(senderId)).emit("chat:typing", payload)
+}
+
 export const initializeSocketServer = (server: HttpServer) => {
   io = new Server(server, {
     cors: {
-      origin: process.env.CLIENT_URL?.split(",") ?? "*",
+      origin: allowedOrigins.length > 0 ? allowedOrigins : "*",
       methods: ["GET", "POST"],
     },
   })
@@ -137,7 +157,40 @@ export const initializeSocketServer = (server: HttpServer) => {
       }
     })
 
+    socket.on("chat:typing", (payload, callback) => {
+      const receiverId = typeof payload?.receiverId === "string" ? payload.receiverId : ""
+      const isTyping = Boolean(payload?.isTyping)
+
+      if (!receiverId || receiverId === currentUserId) {
+        if (typeof callback === "function") {
+          callback({ success: false, message: "Receiver ID is required" })
+        }
+        return
+      }
+
+      if (isTyping) {
+        const targets = socketTypingTargets.get(socket.id) ?? new Set<string>()
+        targets.add(receiverId)
+        socketTypingTargets.set(socket.id, targets)
+      } else {
+        const targets = socketTypingTargets.get(socket.id)
+        targets?.delete(receiverId)
+      }
+
+      emitTypingState(currentUserId, receiverId, isTyping)
+
+      if (typeof callback === "function") {
+        callback({ success: true })
+      }
+    })
+
     socket.on("disconnect", () => {
+      const typingTargets = socketTypingTargets.get(socket.id)
+      typingTargets?.forEach((receiverId) => {
+        emitTypingState(currentUserId, receiverId, false)
+      })
+      socketTypingTargets.delete(socket.id)
+
       decrementOnlineUser(currentUserId)
 
       if (!isUserOnline(currentUserId)) {
@@ -149,6 +202,14 @@ export const initializeSocketServer = (server: HttpServer) => {
   })
 
   return io
+}
+
+export const emitTypingStarted = (senderId: string, receiverId: string) => {
+  emitTypingState(senderId, receiverId, true)
+}
+
+export const emitTypingStopped = (senderId: string, receiverId: string) => {
+  emitTypingState(senderId, receiverId, false)
 }
 
 export const emitChatMessage = (message: { senderId: string; receiverId: string } & Record<string, any>) => {

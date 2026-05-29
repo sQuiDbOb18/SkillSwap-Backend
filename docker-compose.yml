@@ -1,0 +1,23 @@
+services:
+  api:
+    build: .
+    container_name: skillswap-api
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: 4000
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: skillswap-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped

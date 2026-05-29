@@ -1,9 +1,10 @@
 import { createServer } from "http"
 import app from "./app"
+import { env } from "./config/env"
 import { initializeSocketServer } from "./socket/chatSocket"
 
-const PORT = Number(process.env.PORT ?? 4000)
-const HOST = process.env.HOST ?? "0.0.0.0"
+const PORT = env.PORT
+const HOST = env.HOST
 const server = createServer(app)
 
 initializeSocketServer(server)

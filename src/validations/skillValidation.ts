@@ -2,6 +2,10 @@ import { z } from "zod";
 import { availabilityDays, skillCategories, skillLevels } from "../types/skill";
 
 const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+const booleanQuerySchema = z.union([
+  z.boolean(),
+  z.enum(["true", "false"]).transform((value) => value === "true"),
+]);
 
 const availabilitySlotSchema = z
   .object({
@@ -80,7 +84,7 @@ export const discoverSkillsQuerySchema = z.object({
   availabilityDay: z.enum(availabilityDays).optional(),
   level: z.enum(skillLevels).optional(),
   tag: z.string().trim().min(1).max(30).optional(),
-  isBarter: z.coerce.boolean().optional(),
+  isBarter: booleanQuerySchema.optional(),
   minCreditCost: z.coerce.number().int().min(0).optional(),
   maxCreditCost: z.coerce.number().int().min(0).optional(),
   sortBy: z.enum(["newest", "rating", "creditCostAsc", "creditCostDesc"]).optional(),
@@ -95,4 +99,13 @@ export const discoverSkillsQuerySchema = z.object({
 }, {
   message: "Minimum credit cost cannot be greater than maximum credit cost",
   path: ["minCreditCost"],
+});
+
+export const saveSkillSearchSchema = z.object({
+  name: z
+    .string()
+    .trim()
+    .min(2, "Saved search name must be at least 2 characters")
+    .max(60, "Saved search name must not exceed 60 characters"),
+  query: discoverSkillsQuerySchema,
 });

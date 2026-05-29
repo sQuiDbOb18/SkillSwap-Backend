@@ -17,6 +17,7 @@ import {
   createBooking,
   deleteBooking,
   findBookingById,
+  findPotentialBookingConflicts,
   findSkillById,
   getBookingsForUser,
   resolveBookingExtension,
@@ -58,6 +59,34 @@ const isParticipant = (booking: BookingRecord, userId: string) =>
   isRequester(booking, userId) || isProvider(booking, userId)
 
 const getHalf = (amount: number) => Math.floor(amount / 2)
+
+const assertParticipantsAreAvailable = async (params: {
+  requesterId: string
+  providerId: string
+  startsAt: Date
+  durationMinutes: number
+}) => {
+  const endsAt = new Date(params.startsAt.getTime() + params.durationMinutes * 60 * 1000)
+  const candidates = await findPotentialBookingConflicts({
+    participantUserIds: [params.requesterId, params.providerId],
+    startsBefore: endsAt,
+  })
+
+  const conflict = candidates.find((booking) => {
+    const bookingEndsAt = new Date(
+      booking.date.getTime() + booking.durationMinutes * 60 * 1000
+    )
+
+    return bookingEndsAt > params.startsAt
+  })
+
+  if (conflict) {
+    throw new CustomError(
+      `Booking conflicts with an existing session for ${conflict.skill.title}.`,
+      409
+    )
+  }
+}
 
 const refundRequester = async (booking: BookingRecord, amount: number, reason: string) => {
   if (amount <= 0) {
@@ -258,11 +287,19 @@ export const requestSession = async (
     counterpartyBaseCreditCost = offeredSkill.creditCost
   }
 
+  const startsAt = new Date(date)
+  await assertParticipantsAreAvailable({
+    requesterId: userId,
+    providerId: skill.userId,
+    startsAt,
+    durationMinutes,
+  })
+
   let booking = await createBooking({
     userId,
     skillId,
     offeredSkillId: validOfferedSkillId,
-    date: new Date(date),
+    date: startsAt,
     type,
     sessionMode,
     meetingPlatform,
@@ -316,7 +353,7 @@ export const respondToBooking = async (
     sessionNotes?: string
   }
 ) => {
-  let booking = await findBookingById(bookingId)
+  let booking: BookingRecord = await findBookingById(bookingId)
 
   if (!booking) {
     throw new CustomError("Booking not found", 404)
@@ -421,7 +458,8 @@ export const cancelBooking = async (currentUserId: string, bookingId: string) =>
     throw new CustomError("Only booking participants can cancel this booking", 403)
   }
 
-  if (![BookingStatus.PENDING, BookingStatus.CONFIRMED].includes(booking.status)) {
+  const cancellableStatuses: BookingStatus[] = [BookingStatus.PENDING, BookingStatus.CONFIRMED]
+  if (!cancellableStatuses.includes(booking.status)) {
     throw new CustomError("Only pending or confirmed bookings can be cancelled", 400)
   }
 
@@ -571,7 +609,7 @@ export const respondToBookingExtension = async (
   bookingId: string,
   action: "approve" | "reject"
 ) => {
-  let booking = await findBookingById(bookingId)
+  let booking: BookingRecord = await findBookingById(bookingId)
 
   if (!booking) {
     throw new CustomError("Booking not found", 404)
@@ -589,9 +627,11 @@ export const respondToBookingExtension = async (
     throw new CustomError("Only confirmed bookings can be extended", 400)
   }
 
+  const pendingExtensionMinutes = booking.pendingExtensionMinutes
+
   if (
     booking.extensionStatus !== ExtensionStatus.PENDING ||
-    !booking.pendingExtensionMinutes
+    !pendingExtensionMinutes
   ) {
     throw new CustomError("There is no pending extension request for this booking", 400)
   }
@@ -618,7 +658,7 @@ export const respondToBookingExtension = async (
 
     const updatedBooking = await resolveBookingExtension(bookingId, {
       extensionStatus: "APPROVED",
-      extensionMinutes: { increment: booking.pendingExtensionMinutes },
+      extensionMinutes: { increment: pendingExtensionMinutes },
       extensionCreditCost: { increment: requesterIncrement },
       counterpartyExtensionCreditCost: { increment: providerIncrement },
       pendingExtensionMinutes: null,

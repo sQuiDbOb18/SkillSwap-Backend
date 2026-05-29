@@ -1,6 +1,7 @@
 import express from "express"
 import {
   deleteUserByAdminController,
+  exportModerationAuditController,
   getAdminDashboardController,
   getAllReportsController,
   getAllUsersController,
@@ -25,6 +26,7 @@ const router = express.Router()
 router.use(authMiddleware, restrictTo("Admin"))
 
 router.get("/dashboard", getAdminDashboardController)
+router.get("/audit/export", exportModerationAuditController)
 router.get("/users", validate(adminUsersQuerySchema, "query"), getAllUsersController)
 router.delete("/users/:userId", validate(deleteUserByAdminSchema), deleteUserByAdminController)
 router.get("/reports", validate(adminReportsQuerySchema, "query"), getAllReportsController)

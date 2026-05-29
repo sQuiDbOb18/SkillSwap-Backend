@@ -288,3 +288,35 @@ export const getModerationQueue = async () => {
     openReports,
   }
 }
+
+export const getModerationLogsForExport = (params: {
+  from?: Date
+  to?: Date
+  take: number
+}) => {
+  return prisma.moderationLog.findMany({
+    where: {
+      ...(params.from || params.to
+        ? {
+            createdAt: {
+              ...(params.from ? { gte: params.from } : {}),
+              ...(params.to ? { lte: params.to } : {}),
+            },
+          }
+        : {}),
+    },
+    include: {
+      admin: {
+        select: {
+          id: true,
+          email: true,
+          fullName: true,
+        },
+      },
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+    take: params.take,
+  })
+}

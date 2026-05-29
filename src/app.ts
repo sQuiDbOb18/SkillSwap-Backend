@@ -1,9 +1,11 @@
 import "dotenv/config"
 import express from "express"
 import cors from "cors"
+import { allowedOrigins } from "./config/env"
 import { globalErrorHandler } from "./middleware/errorHandler"
 import { notFoundHandler } from "./middleware/notFound"
 import { requestLogger } from "./middleware/requestLogger"
+import healthRoutes from "./routes/healthRoutes"
 import authRoutes from "./routes/authRoutes"
 import userRoutes from "./routes/userRoutes"
 import skillRoutes from "./routes/skillRoutes"
@@ -19,7 +21,7 @@ const app = express()
 const apiV1Router = express.Router()
 
 app.use(cors({
-    origin: process.env.CLIENT_URL?.split(",") ?? true,
+    origin: allowedOrigins.length > 0 ? allowedOrigins : true,
     credentials: true
 }))
 app.use(requestLogger)
@@ -36,6 +38,7 @@ apiV1Router.use("/wallet", walletRoutes)
 apiV1Router.use("/reports", reportRoutes)
 apiV1Router.use("/admin", adminRoutes)
 
+app.use("/health", healthRoutes)
 app.use("/api/v1", apiV1Router)
 app.use("/api", apiV1Router)
 

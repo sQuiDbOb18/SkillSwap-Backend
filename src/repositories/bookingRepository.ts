@@ -217,3 +217,45 @@ export const getBookingsForUser = (userId: string) => {
     orderBy: { date: "asc" },
   });
 };
+
+export const findPotentialBookingConflicts = (params: {
+  participantUserIds: string[]
+  startsBefore: Date
+}) => {
+  return prisma.booking.findMany({
+    where: {
+      status: {
+        in: [BookingStatus.PENDING, BookingStatus.CONFIRMED],
+      },
+      date: {
+        lt: params.startsBefore,
+      },
+      OR: [
+        {
+          userId: {
+            in: params.participantUserIds,
+          },
+        },
+        {
+          skill: {
+            userId: {
+              in: params.participantUserIds,
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      userId: true,
+      date: true,
+      durationMinutes: true,
+      skill: {
+        select: {
+          userId: true,
+          title: true,
+        },
+      },
+    },
+  })
+}
