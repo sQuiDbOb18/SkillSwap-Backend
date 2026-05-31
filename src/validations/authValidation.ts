@@ -37,3 +37,14 @@ export const loginSchema = z.object({
     .string()
     .min(1, "Password is required"),
 })
+
+export const googleAuthSchema = z
+  .object({
+    idToken: z.string().trim().min(1, "Google ID token is required").optional(),
+    code: z.string().trim().min(1, "Google authorization code is required").optional(),
+    redirectUri: z.string().trim().url("Invalid redirect URI").optional(),
+  })
+  .refine((data) => Boolean(data.idToken || data.code), {
+    message: "Provide either a Google ID token or authorization code",
+    path: ["idToken"],
+  })

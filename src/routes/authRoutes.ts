@@ -4,13 +4,14 @@ import {
   verifyEmailController,
   resendVerificationController,
   login,
+  googleAuth,
   refreshTokens,
   logout
 } from "../controllers/authController"
 import { validate } from "../middleware/validate"
 import { authMiddleware } from "../middleware/authMiddleware"
 import { rateLimit } from "../middleware/rateLimiter"
-import { loginSchema, registerSchema } from "../validations/authValidation"
+import { googleAuthSchema, loginSchema, registerSchema } from "../validations/authValidation"
 import { forgotPasswordSchema, verifyEmailTokenSchema } from "../validations/userValidation"
 
 const router = express.Router()
@@ -31,6 +32,7 @@ router.post("/register", authWriteLimiter, validate(registerSchema), register)
 router.post("/verify-email", authWriteLimiter, validate(verifyEmailTokenSchema), verifyEmailController)
 router.post("/resend-verification", authWriteLimiter, validate(forgotPasswordSchema), resendVerificationController)
 router.post("/login", loginLimiter, validate(loginSchema), login)
+router.post("/google", loginLimiter, validate(googleAuthSchema), googleAuth)
 router.post("/refresh", authWriteLimiter, refreshTokens)
 router.post("/logout", authMiddleware, logout)
 

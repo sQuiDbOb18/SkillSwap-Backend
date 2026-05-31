@@ -1,6 +1,6 @@
 import { Request, Response } from "express"
 import { asyncHandler } from "../utils/asyncHandler"
-import { registerUser, verifyEmail, loginUser, logoutUser, refreshUserTokens, resendVerificationCode } from "../services/authService"
+import { registerUser, verifyEmail, loginUser, logoutUser, refreshUserTokens, resendVerificationCode, loginWithGoogle } from "../services/authService"
 import { clearRefreshTokenCookie, getRefreshTokenFromRequest, setRefreshTokenCookie } from "../utils/refreshTokenCookie"
 
 export const register = asyncHandler(async( req: Request, res: Response) => {
@@ -11,6 +11,7 @@ export const register = asyncHandler(async( req: Request, res: Response) => {
 export const verifyEmailController = asyncHandler(async( req: Request, res: Response) => {
     const { code } = req.body
     const result = await verifyEmail(code)
+    setRefreshTokenCookie(res, result.refreshToken)
     res.status(201).json(result)
 })
 
@@ -24,6 +25,12 @@ export const login = asyncHandler(async( req: Request, res: Response) => {
     const result = await loginUser(req.body)
     setRefreshTokenCookie(res, result.refreshToken)
     res.json(result)
+})
+
+export const googleAuth = asyncHandler(async( req: Request, res: Response) => {
+    const result = await loginWithGoogle(req.body)
+    setRefreshTokenCookie(res, result.refreshToken)
+    res.status(200).json(result)
 })
 
 export const refreshTokens = asyncHandler(async( req: Request, res: Response) => {

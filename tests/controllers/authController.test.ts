@@ -1,5 +1,6 @@
 import { jest, describe, it, expect, beforeEach } from "@jest/globals"
 import {
+  loginWithGoogle,
   loginUser,
   logoutUser,
   refreshUserTokens,
@@ -11,12 +12,13 @@ import {
   getRefreshTokenFromRequest,
   setRefreshTokenCookie,
 } from "../../src/utils/refreshTokenCookie"
-import { login, logout, refreshTokens, register, verifyEmailController } from "../../src/controllers/authController"
+import { googleAuth, login, logout, refreshTokens, register, verifyEmailController } from "../../src/controllers/authController"
 
 jest.mock("../../src/services/authService", () => ({
   registerUser: jest.fn(),
   verifyEmail: jest.fn(),
   loginUser: jest.fn(),
+  loginWithGoogle: jest.fn(),
   logoutUser: jest.fn(),
   refreshUserTokens: jest.fn(),
 }))
@@ -30,6 +32,7 @@ jest.mock("../../src/utils/refreshTokenCookie", () => ({
 const mockedRegisterUser = registerUser as jest.MockedFunction<typeof registerUser>
 const mockedVerifyEmail = verifyEmail as jest.MockedFunction<typeof verifyEmail>
 const mockedLoginUser = loginUser as jest.MockedFunction<typeof loginUser>
+const mockedLoginWithGoogle = loginWithGoogle as jest.MockedFunction<typeof loginWithGoogle>
 const mockedLogoutUser = logoutUser as jest.MockedFunction<typeof logoutUser>
 const mockedRefreshUserTokens = refreshUserTokens as jest.MockedFunction<typeof refreshUserTokens>
 const mockedGetRefreshTokenFromRequest = getRefreshTokenFromRequest as jest.MockedFunction<
@@ -63,9 +66,14 @@ describe("authController", () => {
 
   it("verifies email with status 201", async () => {
     const res = createResponse()
-    mockedVerifyEmail.mockResolvedValue({ message: "verified" } as never)
+    mockedVerifyEmail.mockResolvedValue({
+      message: "verified",
+      accessToken: "access",
+      refreshToken: "refresh",
+    } as never)
     await runController(verifyEmailController, { body: { code: "123456" } }, res)
     expect(mockedVerifyEmail).toHaveBeenCalledWith("123456")
+    expect(mockedSetRefreshTokenCookie).toHaveBeenCalledWith(res as any, "refresh")
     expect(res.status).toHaveBeenCalledWith(201)
   })
 
@@ -84,6 +92,17 @@ describe("authController", () => {
     expect(mockedSetRefreshTokenCookie).toHaveBeenCalledWith(res as any, "refresh")
     expect(mockedRefreshUserTokens).toHaveBeenCalledWith("old-refresh")
     expect(mockedSetRefreshTokenCookie).toHaveBeenCalledWith(res as any, "new-refresh")
+  })
+
+  it("sets refresh cookie on Google auth", async () => {
+    const res = createResponse()
+    mockedLoginWithGoogle.mockResolvedValue({ accessToken: "access", refreshToken: "refresh" } as never)
+
+    await runController(googleAuth, { body: { idToken: "google-id-token" } }, res)
+
+    expect(mockedLoginWithGoogle).toHaveBeenCalledWith({ idToken: "google-id-token" })
+    expect(mockedSetRefreshTokenCookie).toHaveBeenCalledWith(res as any, "refresh")
+    expect(res.status).toHaveBeenCalledWith(200)
   })
 
   it("clears refresh cookie on logout", async () => {

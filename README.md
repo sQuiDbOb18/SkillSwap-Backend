@@ -7,6 +7,8 @@ A TypeScript Express backend for the SkillSwap application, using Prisma for dat
 - Express API with versioned routes
 - PostgreSQL database via Prisma
 - JWT access and refresh token handling
+- Email/password signup with auto-login after verification
+- Google signup/login with verified Google emails
 - Socket.io chat/socket support
 - Email templates and Resend integration
 - Cloudinary profile image uploads
@@ -37,6 +39,7 @@ cp .env.example .env
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
 - email provider settings
+- Google OAuth settings if you enable Google signup/login
 - application URLs
 
 3. Install dependencies:
@@ -145,6 +148,14 @@ That means Prisma migrations run before the server starts. Make sure the product
 ## API documentation
 
 - Health check: `http://localhost:4000/health`
+- OpenAPI spec: `docs/openapi.yaml`
+- Route reference: `docs/api.md`
+
+### Auth behavior
+
+- `POST /api/v1/auth/register` creates a pending registration and sends a verification code.
+- `POST /api/v1/auth/verify-email` creates the user, marks the account verified, returns `accessToken` and `refreshToken`, and sets the refresh-token cookie.
+- `POST /api/v1/auth/google` accepts a Google ID token or authorization code. If the email is new, it creates a verified account and signs the user in. If the user already exists, it signs them in. Google-authenticated users do not need a separate email verification step.
 
 ## Environment variables
 
@@ -154,6 +165,8 @@ Required:
 - `REDIS_URL` (recommended for production rate limiting)
 - `JWT_ACCESS_SECRET`
 - `JWT_REFRESH_SECRET`
+- `GOOGLE_CLIENT_ID` (required for Google signup/login)
+- `GOOGLE_CLIENT_SECRET` (required when exchanging Google authorization codes)
 - `CLIENT_URL`
 - `API_URL`
 - `APP_NAME`
@@ -170,6 +183,7 @@ Optional / defaults:
 
 - `ACCESS_TOKEN_EXPIRES_IN` — default `15m`
 - `REFRESH_TOKEN_EXPIRES_IN` — default `7d`
+- `GOOGLE_REDIRECT_URI` — default should match your frontend Google callback, for example `http://localhost:3000/auth/google/callback`
 - `PORT` — default `4000`
 - `HOST` — default `0.0.0.0`
 - `BOOKINGS_PAGE_URL`

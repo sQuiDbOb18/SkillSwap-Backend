@@ -6,6 +6,7 @@ import * as tokenUtils from "../../src/utils/generateToken"
 import * as authTokenUtils from "../../src/utils/authToken"
 import * as emailService from "../../src/services/emailService"
 import {
+  loginWithGoogle,
   loginUser,
   logoutUser,
   refreshUserTokens,
@@ -13,6 +14,17 @@ import {
   resendVerificationCode,
   verifyEmail,
 } from "../../src/services/authService"
+import { env } from "../../src/config/env"
+
+const mockVerifyIdToken = jest.fn()
+const mockGetToken = jest.fn()
+
+jest.mock("google-auth-library", () => ({
+  OAuth2Client: jest.fn().mockImplementation(() => ({
+    verifyIdToken: mockVerifyIdToken,
+    getToken: mockGetToken,
+  })),
+}))
 
 jest.mock("../../src/repositories/userRepository", () => ({
   createUser: jest.fn(),
@@ -60,6 +72,9 @@ const mockedEmailService = emailService as jest.Mocked<typeof emailService>
 describe("authService", () => {
   beforeEach(() => {
     jest.clearAllMocks()
+    env.GOOGLE_CLIENT_ID = "google-client-id"
+    env.GOOGLE_CLIENT_SECRET = "google-client-secret"
+    env.GOOGLE_REDIRECT_URI = "http://localhost:3000/auth/google/callback"
   })
 
   it("registers a pending user and sends a verification email", async () => {
@@ -108,12 +123,20 @@ describe("authService", () => {
       id: "user-1",
       email: "ada@example.com",
       fullName: "Ada Lovelace",
+      role: "User",
+      tokenVersion: 0,
     } as never)
     mockedUserRepository.deletePendingRegistration.mockResolvedValue({ id: "pending-1" } as never)
     mockedEmailService.sendWelcomeEmail.mockResolvedValue(undefined)
+    mockedTokenUtils.generateAccessToken.mockReturnValue("access-token" as never)
+    mockedTokenUtils.generateRefreshToken.mockReturnValue("refresh-token" as never)
+    mockedCodeUtils.hashCode.mockReturnValue("refresh-token-hash")
+    mockedUserRepository.updateUser.mockResolvedValue({ id: "user-1" } as never)
 
     await expect(verifyEmail("123456")).resolves.toEqual({
       message: "Email verified successfully",
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
     })
     expect(mockedUserRepository.createUser).toHaveBeenCalledWith({
       email: "ada@example.com",
@@ -122,6 +145,13 @@ describe("authService", () => {
       isVerified: true,
     })
     expect(mockedUserRepository.deletePendingRegistration).toHaveBeenCalledWith("pending-1")
+    expect(mockedUserRepository.updateUser).toHaveBeenCalledWith(
+      "user-1",
+      expect.objectContaining({
+        refreshTokenHash: "refresh-token-hash",
+        refreshTokenExpires: expect.any(Date),
+      })
+    )
   })
 
   it("resends a verification code for a pending registration", async () => {
@@ -184,6 +214,82 @@ describe("authService", () => {
         refreshTokenExpires: expect.any(Date),
       })
     )
+  })
+
+  it("creates a verified user from Google and immediately issues tokens", async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: "Ada@Example.com",
+        email_verified: true,
+        name: "Ada Lovelace",
+        picture: "https://example.com/avatar.png",
+      }),
+    })
+    mockedUserRepository.findAnyUserByEmail.mockResolvedValue(null)
+    mockedUserRepository.findPendingRegistrationByEmail.mockResolvedValue({
+      id: "pending-1",
+      email: "ada@example.com",
+    } as never)
+    mockedUserRepository.deletePendingRegistration.mockResolvedValue({ id: "pending-1" } as never)
+    mockedHashUtils.hashPassword.mockResolvedValue("hashed-random-password" as never)
+    mockedUserRepository.createUser.mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+      role: "User",
+      tokenVersion: 0,
+    } as never)
+    mockedEmailService.sendWelcomeEmail.mockResolvedValue(undefined)
+    mockedTokenUtils.generateAccessToken.mockReturnValue("access-token" as never)
+    mockedTokenUtils.generateRefreshToken.mockReturnValue("refresh-token" as never)
+    mockedCodeUtils.hashCode.mockReturnValue("refresh-token-hash")
+    mockedUserRepository.updateUser.mockResolvedValue({ id: "user-1" } as never)
+
+    await expect(loginWithGoogle({ idToken: "google-id-token" })).resolves.toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    })
+    expect(mockedUserRepository.deletePendingRegistration).toHaveBeenCalledWith("pending-1")
+    expect(mockedUserRepository.createUser).toHaveBeenCalledWith({
+      email: "ada@example.com",
+      password: "hashed-random-password",
+      fullName: "Ada Lovelace",
+      profileImage: "https://example.com/avatar.png",
+      isVerified: true,
+    })
+    expect(mockedEmailService.sendWelcomeEmail).toHaveBeenCalledWith({
+      email: "ada@example.com",
+      name: "Ada Lovelace",
+    })
+  })
+
+  it("logs in an existing user from Google without requiring password verification", async () => {
+    mockVerifyIdToken.mockResolvedValue({
+      getPayload: () => ({
+        email: "ada@example.com",
+        email_verified: true,
+        name: "Ada Lovelace",
+      }),
+    })
+    mockedUserRepository.findAnyUserByEmail.mockResolvedValue({
+      id: "user-1",
+      email: "ada@example.com",
+      role: "User",
+      tokenVersion: 3,
+      isVerified: false,
+      deletedAt: null,
+    } as never)
+    mockedTokenUtils.generateAccessToken.mockReturnValue("access-token" as never)
+    mockedTokenUtils.generateRefreshToken.mockReturnValue("refresh-token" as never)
+    mockedCodeUtils.hashCode.mockReturnValue("refresh-token-hash")
+    mockedUserRepository.updateUser.mockResolvedValue({ id: "user-1" } as never)
+
+    await expect(loginWithGoogle({ idToken: "google-id-token" })).resolves.toEqual({
+      accessToken: "access-token",
+      refreshToken: "refresh-token",
+    })
+    expect(mockedUserRepository.updateUser).toHaveBeenCalledWith("user-1", { isVerified: true })
+    expect(mockedHashUtils.comparePassword).not.toHaveBeenCalled()
   })
 
   it("refreshes tokens only when the stored token hash matches the decoded user", async () => {

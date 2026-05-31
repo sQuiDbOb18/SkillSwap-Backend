@@ -8,3 +8,4 @@ coverage
 dist/
 .agents/skills/neon-postgres/
 docs/
+
